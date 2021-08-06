@@ -15,8 +15,7 @@ func TestSimpleFlow(t *testing.T) {
 		big.NewInt(0), // x^2
 		big.NewInt(1), // x^3
 	}
-	// fmt.Println("p(x):", polynomialToString(p))
-	assert.Equal(t, "1x³ + 1x¹ + 5", polynomialToString(p))
+	assert.Equal(t, "1x³ + 1x¹ + 5", PolynomialToString(p))
 
 	// TrustedSetup
 	ts, err := NewTrustedSetup(p)

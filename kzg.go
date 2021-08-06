@@ -65,14 +65,15 @@ func evaluateG2(ts *TrustedSetup, p []*big.Int) *bn256.G2 {
 
 // EvaluationProof generates the evaluation proof
 func EvaluationProof(ts *TrustedSetup, p []*big.Int, z, y *big.Int) (*bn256.G1, error) {
-	n := polynomialSub(p, []*big.Int{y})    // p-y
+	n := polynomialSub(p, []*big.Int{y}) // p-y
+	// n := p // we can omit y (p(z))
 	d := []*big.Int{fNeg(z), big.NewInt(1)} // x-z
 	q, rem := polynomialDiv(n, d)
 	if compareBigIntArray(rem, arrayOfZeroes(len(rem))) {
 		return nil,
 			fmt.Errorf("remainder should be 0, instead is %d", rem)
 	}
-	fmt.Println("q(x):", polynomialToString(q)) // TMP DBG
+	fmt.Println("q(x):", PolynomialToString(q)) // TMP DBG
 
 	// proof: e = [q(s)]₁
 	e := evaluateG1(ts, q)

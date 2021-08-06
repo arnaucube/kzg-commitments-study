@@ -224,7 +224,9 @@ func intToSNum(n int) string {
 	return sN
 }
 
-func polynomialToString(p []*big.Int) string {
+// PolynomialToString converts a polynomial represented by a *big.Int array,
+// into its string human readable representation
+func PolynomialToString(p []*big.Int) string {
 	s := ""
 	for i := len(p) - 1; i >= 1; i-- {
 		if !bytes.Equal(p[i].Bytes(), big.NewInt(0).Bytes()) {
