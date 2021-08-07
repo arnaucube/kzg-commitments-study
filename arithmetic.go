@@ -69,6 +69,12 @@ func compareBigIntArray(a, b []*big.Int) bool {
 	return true
 }
 
+//nolint:deadcode,unused
+func checkArrayOfZeroes(a []*big.Int) bool {
+	z := arrayOfZeroes(len(a))
+	return compareBigIntArray(a, z)
+}
+
 func fAdd(a, b *big.Int) *big.Int {
 	ab := new(big.Int).Add(a, b)
 	return ab.Mod(ab, R)
@@ -89,7 +95,6 @@ func fDiv(a, b *big.Int) *big.Int {
 	return new(big.Int).Mod(ab, R)
 }
 
-//nolint:unused,deadcode // TODO check
 func fNeg(a *big.Int) *big.Int {
 	return new(big.Int).Mod(new(big.Int).Neg(a), R)
 }
@@ -170,6 +175,19 @@ func polynomialDiv(a, b []*big.Int) ([]*big.Int, []*big.Int) {
 	return r, rem
 }
 
+func polynomialMulByConstant(a []*big.Int, c *big.Int) []*big.Int {
+	for i := 0; i < len(a); i++ {
+		a[i] = fMul(a[i], c)
+	}
+	return a
+}
+func polynomialDivByConstant(a []*big.Int, c *big.Int) []*big.Int {
+	for i := 0; i < len(a); i++ {
+		a[i] = fDiv(a[i], c)
+	}
+	return a
+}
+
 // polynomialEval evaluates the polinomial over the Finite Field at the given value x
 func polynomialEval(p []*big.Int, x *big.Int) *big.Int {
 	r := big.NewInt(int64(0))
@@ -200,6 +218,16 @@ func newPolZeroAt(pointPos, totalPoints int, height *big.Int) []*big.Int {
 		}
 	}
 	return r
+}
+
+// zeroPolynomial returns the zero polynomial:
+// z(x) = (x - z_0) (x - z_1) ... (x - z_{k-1})
+func zeroPolynomial(zs []*big.Int) []*big.Int {
+	z := []*big.Int{fNeg(zs[0]), big.NewInt(1)}
+	for i := 1; i < len(zs); i++ {
+		z = polynomialMul(z, []*big.Int{fNeg(zs[i]), big.NewInt(1)})
+	}
+	return z
 }
 
 var sNums = map[string]string{
@@ -235,6 +263,42 @@ func PolynomialToString(p []*big.Int) string {
 	}
 	s += p[0].String()
 	return s
+}
+
+// LagrangeInterpolation implements the Lagrange interpolation:
+// https://en.wikipedia.org/wiki/Lagrange_polynomial
+func LagrangeInterpolation(x, y []*big.Int) ([]*big.Int, error) {
+	// p(x) will be the interpoled polynomial
+	// var p []*big.Int
+	if len(x) != len(y) {
+		return nil, fmt.Errorf("len(x)!=len(y): %d, %d", len(x), len(y))
+	}
+	p := arrayOfZeroes(len(x))
+	k := len(x)
+
+	for j := 0; j < k; j++ {
+		// jPol is the Lagrange basis polynomial for each point
+		var jPol []*big.Int
+		for m := 0; m < k; m++ {
+			// if x[m] == x[j] {
+			if m == j {
+				continue
+			}
+			// numerator & denominator of the current iteration
+			num := []*big.Int{fNeg(x[m]), big.NewInt(1)} // (x^1 - x_m)
+			den := fSub(x[j], x[m])                      // x_j-x_m
+			mPol := polynomialDivByConstant(num, den)
+			if len(jPol) == 0 {
+				// first j iteration
+				jPol = mPol
+				continue
+			}
+			jPol = polynomialMul(jPol, mPol)
+		}
+		p = polynomialAdd(p, polynomialMulByConstant(jPol, y[j]))
+	}
+
+	return p, nil
 }
 
 // TODO add method to 'clean' the polynomial, to remove right-zeroes

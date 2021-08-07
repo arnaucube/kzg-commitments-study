@@ -80,6 +80,21 @@ func TestPolynomial(t *testing.T) {
 	assert.Equal(t, polynomialEval(o, big.NewInt(3)), b4)
 	o = newPolZeroAt(2, 4, b3)
 	assert.Equal(t, polynomialEval(o, big.NewInt(2)), b3)
+
+	// polynomialEval
+	// p(x) = x^3 + x + 5
+	p := []*big.Int{
+		big.NewInt(5),
+		big.NewInt(1), // x^1
+		big.NewInt(0), // x^2
+		big.NewInt(1), // x^3
+	}
+	assert.Equal(t, "1x³ + 1x¹ + 5", PolynomialToString(p))
+	assert.Equal(t, "35", polynomialEval(p, big.NewInt(3)).String())
+	assert.Equal(t, "1015", polynomialEval(p, big.NewInt(10)).String())
+	assert.Equal(t, "16777477", polynomialEval(p, big.NewInt(256)).String())
+	assert.Equal(t, "125055", polynomialEval(p, big.NewInt(50)).String())
+	assert.Equal(t, "7", polynomialEval(p, big.NewInt(1)).String())
 }
 
 func BenchmarkArithmetic(b *testing.B) {
@@ -108,4 +123,43 @@ func BenchmarkArithmetic(b *testing.B) {
 			polynomialDiv(p, q)
 		}
 	})
+}
+
+func TestLagrangeInterpolation(t *testing.T) {
+	x0 := big.NewInt(3)
+	y0 := big.NewInt(35)
+	x1 := big.NewInt(10)
+	y1 := big.NewInt(1015)
+	x2 := big.NewInt(256)
+	y2 := big.NewInt(16777477)
+	x3 := big.NewInt(50)
+	y3 := big.NewInt(125055)
+
+	xs := []*big.Int{x0, x1, x2, x3}
+	ys := []*big.Int{y0, y1, y2, y3}
+
+	p, err := LagrangeInterpolation(xs, ys)
+	assert.Nil(t, err)
+	assert.Equal(t, "1x³ + 1x¹ + 5", PolynomialToString(p))
+
+	assert.Equal(t, y0, polynomialEval(p, x0))
+	assert.Equal(t, y1, polynomialEval(p, x1))
+	assert.Equal(t, y2, polynomialEval(p, x2))
+}
+
+func TestZeroPolynomial(t *testing.T) {
+	x0 := big.NewInt(1)
+	x1 := big.NewInt(40)
+	x2 := big.NewInt(512)
+	xs := []*big.Int{x0, x1, x2}
+
+	z := zeroPolynomial(xs)
+	assert.Equal(t, "1x³ "+
+		"+ 21888242871839275222246405745257275088548364400416034343698204186575808495064x² "+
+		"+ 21032x¹ + 21888242871839275222246405745257275088548364400416034343698204186575808475137",
+		PolynomialToString(z))
+
+	assert.Equal(t, "0", polynomialEval(z, x0).String())
+	assert.Equal(t, "0", polynomialEval(z, x1).String())
+	assert.Equal(t, "0", polynomialEval(z, x2).String())
 }
