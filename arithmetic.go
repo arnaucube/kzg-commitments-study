@@ -223,9 +223,9 @@ func newPolZeroAt(pointPos, totalPoints int, height *big.Int) []*big.Int {
 // zeroPolynomial returns the zero polynomial:
 // z(x) = (x - z_0) (x - z_1) ... (x - z_{k-1})
 func zeroPolynomial(zs []*big.Int) []*big.Int {
-	z := []*big.Int{fNeg(zs[0]), big.NewInt(1)}
+	z := []*big.Int{fNeg(zs[0]), big.NewInt(1)} // (x - z0)
 	for i := 1; i < len(zs); i++ {
-		z = polynomialMul(z, []*big.Int{fNeg(zs[i]), big.NewInt(1)})
+		z = polynomialMul(z, []*big.Int{fNeg(zs[i]), big.NewInt(1)}) // (x - zi)
 	}
 	return z
 }
@@ -257,7 +257,9 @@ func intToSNum(n int) string {
 func PolynomialToString(p []*big.Int) string {
 	s := ""
 	for i := len(p) - 1; i >= 1; i-- {
-		if !bytes.Equal(p[i].Bytes(), big.NewInt(0).Bytes()) {
+		if bytes.Equal(p[i].Bytes(), big.NewInt(1).Bytes()) {
+			s += fmt.Sprintf("x%s + ", intToSNum(i))
+		} else if !bytes.Equal(p[i].Bytes(), big.NewInt(0).Bytes()) {
 			s += fmt.Sprintf("%sx%s + ", p[i], intToSNum(i))
 		}
 	}

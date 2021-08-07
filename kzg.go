@@ -15,7 +15,7 @@ type TrustedSetup struct {
 
 // NewTrustedSetup returns a new trusted setup. This step should be done in a
 // secure & distributed way
-func NewTrustedSetup(p []*big.Int) (*TrustedSetup, error) {
+func NewTrustedSetup(l int) (*TrustedSetup, error) {
 	// compute random s
 	s, err := randBigInt()
 	if err != nil {
@@ -26,10 +26,10 @@ func NewTrustedSetup(p []*big.Int) (*TrustedSetup, error) {
 	// τ₁: [x₀]₁, [x₁]₁, [x₂]₁, ..., [x n₋₁]₁
 	// τ₂: [x₀]₂, [x₁]₂, [x₂]₂, ..., [x n₋₁]₂
 
-	// sPow := make([]*big.Int, len(p))
-	tauG1 := make([]*bn256.G1, len(p))
-	tauG2 := make([]*bn256.G2, len(p))
-	for i := 0; i < len(p); i++ {
+	// sPow := make([]*big.Int, l)
+	tauG1 := make([]*bn256.G1, l)
+	tauG2 := make([]*bn256.G2, l)
+	for i := 0; i < l; i++ {
 		sPow := fExp(s, big.NewInt(int64(i)))
 		tauG1[i] = new(bn256.G1).ScalarBaseMult(sPow)
 		tauG2[i] = new(bn256.G2).ScalarBaseMult(sPow)
@@ -73,19 +73,18 @@ func EvaluationProof(ts *TrustedSetup, p []*big.Int, z, y *big.Int) (*bn256.G1, 
 		return nil,
 			fmt.Errorf("remainder should be 0, instead is %d", rem)
 	}
-	fmt.Println("q(x):", PolynomialToString(q)) // TMP DBG
 
-	// proof: e = [q(s)]₁
+	// proof: e = [q(t)]₁
 	e := evaluateG1(ts, q)
 	return e, nil
 }
 
 // Verify computes the KZG commitment verification
 func Verify(ts *TrustedSetup, c, proof *bn256.G1, z, y *big.Int) bool {
-	s2 := ts.Tau2[1] // [s]₂ = sG ∈ 𝔾₂ = Tau2[1]
+	s2 := ts.Tau2[1] // [t]₂ = sG ∈ 𝔾₂ = Tau2[1]
 	zG2Neg := new(bn256.G2).Neg(
 		new(bn256.G2).ScalarBaseMult(z)) // [z]₂ = zG ∈ 𝔾₂
-	// [s]₂ - [z]₂
+	// [t]₂ - [z]₂
 	sz := new(bn256.G2).Add(s2, zG2Neg)
 
 	yG1Neg := new(bn256.G1).Neg(
@@ -95,8 +94,72 @@ func Verify(ts *TrustedSetup, c, proof *bn256.G1, z, y *big.Int) bool {
 
 	h := new(bn256.G2).ScalarBaseMult(big.NewInt(1)) // H ∈ 𝔾₂
 
-	// e(proof, [s]₂ - [z]₂) == e(c - [y]₁, H)
+	// e(proof, [t]₂ - [z]₂) == e(c - [y]₁, H)
 	e1 := bn256.Pair(proof, sz)
 	e2 := bn256.Pair(cy, h)
+	return e1.String() == e2.String()
+}
+
+//
+// Batch proofs
+//
+
+// EvaluationBatchProof generates the evalutation proof for the given list of points
+func EvaluationBatchProof(ts *TrustedSetup, p []*big.Int, zs, ys []*big.Int) (*bn256.G1, error) {
+	if len(zs) != len(ys) {
+		return nil, fmt.Errorf("len(zs)!=len(ys), %d!=%d", len(zs), len(ys))
+	}
+	if len(p) <= len(zs)+1 {
+		return nil, fmt.Errorf("polynomial p(x) can not be of degree"+
+			" equal or smaller than the number of given points+1."+
+			" Polynomial p(x) degree: %d, number of points: %d",
+			len(p), len(zs))
+	}
+
+	// z(x) = (x-z0)(x-z1)...(x-zn)
+	z := zeroPolynomial(zs)
+
+	// I(x) = Lagrange interpolation through (z0, y0), (z1, y1), ...
+	i, err := LagrangeInterpolation(zs, ys)
+	if err != nil {
+		return nil, err
+	}
+
+	// q(x) = ( p(x) - I(x) ) / z(x)
+	pMinusI := polynomialSub(p, i)
+	q, rem := polynomialDiv(pMinusI, z)
+	if compareBigIntArray(rem, arrayOfZeroes(len(rem))) {
+		return nil,
+			fmt.Errorf("remainder should be 0, instead is %d", rem)
+	}
+
+	// proof: e = [q(t)]₁
+	e := evaluateG1(ts, q)
+	return e, nil
+}
+
+// VerifyBatchProof computes the KZG batch proof commitment verification
+func VerifyBatchProof(ts *TrustedSetup, c, proof *bn256.G1, zs, ys []*big.Int) bool {
+	// [z(s)]₂
+	z := zeroPolynomial(zs)
+	zG2 := evaluateG2(ts, z) // [z(t)]₂ = z(t) G ∈ 𝔾₂
+
+	// I(x) = Lagrange interpolation through (z0, y0), (z1, y1), ...
+	i, err := LagrangeInterpolation(zs, ys)
+	if err != nil {
+		return false
+	}
+	// [i(t)]₁
+	iG1 := evaluateG1(ts, i) // [i(t)]₁ = i(t) G ∈ 𝔾₁
+
+	// c - [i(t)]₁
+	iG1Neg := new(bn256.G1).Neg(iG1)
+	ciG1 := new(bn256.G1).Add(c, iG1Neg)
+
+	h := new(bn256.G2).ScalarBaseMult(big.NewInt(1)) // H ∈ 𝔾₂
+
+	// e(proof, [z(t)]₂) == e(c - [I(t)]₁, H)
+	e1 := bn256.Pair(proof, zG2)
+	e2 := bn256.Pair(ciG1, h)
 	return e1.String() == e2.String()
 }

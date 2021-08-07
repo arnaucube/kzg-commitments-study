@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"testing"
 
-	cryptoConstants "github.com/iden3/go-iden3-crypto/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +17,7 @@ func randBI() *big.Int {
 		panic(err)
 	}
 	r := new(big.Int).SetBytes(b)
-	return new(big.Int).Mod(r, cryptoConstants.Q)
+	return new(big.Int).Mod(r, Q)
 }
 
 func neg(a *big.Int) *big.Int {
@@ -89,7 +88,7 @@ func TestPolynomial(t *testing.T) {
 		big.NewInt(0), // x^2
 		big.NewInt(1), // x^3
 	}
-	assert.Equal(t, "1x³ + 1x¹ + 5", PolynomialToString(p))
+	assert.Equal(t, "x³ + x¹ + 5", PolynomialToString(p))
 	assert.Equal(t, "35", polynomialEval(p, big.NewInt(3)).String())
 	assert.Equal(t, "1015", polynomialEval(p, big.NewInt(10)).String())
 	assert.Equal(t, "16777477", polynomialEval(p, big.NewInt(256)).String())
@@ -140,7 +139,7 @@ func TestLagrangeInterpolation(t *testing.T) {
 
 	p, err := LagrangeInterpolation(xs, ys)
 	assert.Nil(t, err)
-	assert.Equal(t, "1x³ + 1x¹ + 5", PolynomialToString(p))
+	assert.Equal(t, "x³ + x¹ + 5", PolynomialToString(p))
 
 	assert.Equal(t, y0, polynomialEval(p, x0))
 	assert.Equal(t, y1, polynomialEval(p, x1))
@@ -154,7 +153,7 @@ func TestZeroPolynomial(t *testing.T) {
 	xs := []*big.Int{x0, x1, x2}
 
 	z := zeroPolynomial(xs)
-	assert.Equal(t, "1x³ "+
+	assert.Equal(t, "x³ "+
 		"+ 21888242871839275222246405745257275088548364400416034343698204186575808495064x² "+
 		"+ 21032x¹ + 21888242871839275222246405745257275088548364400416034343698204186575808475137",
 		PolynomialToString(z))

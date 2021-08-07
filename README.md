@@ -4,7 +4,10 @@ Doing this to study and learn [KZG commitments](http://cacr.uwaterloo.ca/techrep
 
 Thanks to [Dankrad Feist](https://dankradfeist.de/ethereum/2020/06/16/kate-polynomial-commitments.html), [Alin Tomescu](https://alinush.github.io/2020/05/06/kzg-polynomial-commitments.html), [Tom Walton-Pocock](https://hackmd.io/@tompocock/Hk2A7BD6U) for their articles, which helped me understand a bit the KZG Commitments.
 
+It uses the [ethereum bn256](https://github.com/ethereum/go-ethereum/tree/master/crypto/bn256/cloudflare).
+
 ### Usage
+
 ```go
 // p(x) = x^3 + x + 5
 p := []*big.Int{
@@ -32,5 +35,20 @@ assert.Nil(t, err)
 
 // verification
 v := Verify(ts, c, proof, z, y)
+assert.True(t, v)
+```
+
+Batch Proofs:
+```go
+// zs & ys contain the f(z_i)=y_i values that will be proved inside a batch proof
+zs := []*big.Int{z0, z1, z2}
+ys := []*big.Int{y0, y1, y2}
+
+// prove an evaluation of the multiple z_i & y_i
+proof, err := EvaluationBatchProof(ts, p, zs, ys)
+assert.Nil(t, err)
+
+// batch proof verification
+v := VerifyBatchProof(ts, c, proof, zs, ys)
 assert.True(t, v)
 ```
