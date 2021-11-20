@@ -19,7 +19,7 @@ p := []*big.Int{
 assert.Equal(t, "1x³ + 1x¹ + 5", PolynomialToString(p))
 
 // TrustedSetup
-ts, err := NewTrustedSetup(p)
+ts, err := NewTrustedSetup(len(p))
 assert.Nil(t, err)
 
 // Commit
